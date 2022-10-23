@@ -1,0 +1,259 @@
+---
+title: "Exploratory Data Analysis of Breweries in United States"
+author: "Garrett Drake and Eny Ntuk"
+date: "2022-10-16"
+output: html_document
+
+---
+
+## Objective
+### This studies is to analyze the ABV (Alcohol By Volume) versus the IBU (International Bitterness Unit) of 2410 US craft beers made by 558 US breweries and to also show any relationship between the ABV and IBU of beers.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries}
+# load libraries
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(knitr)
+library(magrittr)
+library(kableExtra)
+library(class)
+library(caret)
+library(e1071)
+library(RCurl)
+library(stringr)
+library(psych)
+```
+
+`````{r}
+# load data
+beer <- read.csv("https://raw.githubusercontent.com/BivinSadler/MSDS_6306_Doing-Data-Science/Master/Unit%208%20and%209%20Case%20Study%201/Beers.csv", header = T)
+
+breweries <- read.csv("https://raw.githubusercontent.com/BivinSadler/MSDS_6306_Doing-Data-Science/Master/Unit%208%20and%209%20Case%20Study%201/Breweries.csv", header = T)
+```
+
+# Problem 1
+```{r Problem 1 Breweries per State}
+######## Problem 1 ----- How many breweries are in each state #####
+breweries$State <- factor(breweries$State) # put into factor so can count
+levels(breweries$State) # check levels
+num_breweries <- breweries %>% count(State) # get total count of breweries by state into new DF
+num_breweries <- rename(num_breweries, total_number = n) # rename column to total_number
+table(breweries$State)
+```
+
+# Problem 1 Printout
+## With plot of breweries by state in order from least to greatest
+```{r Problem 1 printout}
+kable(num_breweries, caption = "Problem 1 Breweries per state")
+```
+
+
+```{r plot breweries by state in order from least to greatest }
+# plot breweries by state in order from least to greatest
+num_breweries %>% ggplot(aes(x=reorder(State,total_number), y = total_number)) +
+  geom_bar(aes(fill = State), position = "dodge", stat = "identity") +
+  geom_text(aes(label=total_number), position=position_dodge(width=0.9), size=2.0, vjust=-0.35) +
+  theme(axis.text.x=element_text(size=rel(0.8), angle=90)) +
+  ggtitle("Total Breweries by State") +
+  labs(x="State",y="Brewery Count")
+
+```
+
+
+
+## Problem 2 Merege data sets and provide first and last 6 rows
+```{r Problem 2 Merge Data sets}
+####### Problem 2 Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.  (RMD only, this does not need to be included in the presentation or the deck.) ########
+big_beer <- full_join(beer, breweries, by = c("Brewery_id" = "Brew_ID" ))
+big_beer <- rename(big_beer, Beer = Name.x, Brewery = Name.y, Beer_Type = Style)
+```
+
+### First 6 rows of merged data set
+```{r}
+head(big_beer, n =6)
+```
+
+### Last 6 rows of merged data set
+```{r}
+tail(big_beer, n = 6)
+```
+
+## Problem 3 Address missing values
+### There are 62 missing values in ABV and 1005 in IBU
+```{r Problem 3 - missing values}
+######### Problem 3 - address missing values ######
+colSums(is.na(breweries)) # no missing values in the breweries data set
+colSums(is.na(beer)) # ABV has 62 missing values, IBU has 1005 missing values
+colSums(is.na(big_beer)) # sanity check for merged data ABV has 62 missing values, IBU has 1005 missing values
+```
+
+
+```{r Problem 3 missing values with kable}
+# Used kable Extra library to make document more presentable
+colSums(is.na(big_beer)) %>%  
+  kable("html", caption = "Problem 3 Missing Values in Each Variable") %>%
+  kable_styling()
+```
+
+## Problem 4
+
+```{r Problem 4 Data Frame with median ABV and IBU by State}
+######### Problem 4	Compute median ABV and IBU for each state. Plot a bar chart to compare. ########
+state_med_ABV_IBU <- big_beer %>% group_by(State) %>% summarise(Median_ABV = median(ABV, na.rm = TRUE), Median_IBU = median(IBU, na.rm = TRUE)) # create data set with medians ABV and IBU for each state
+```
+
+### Table of Median ABV and IBU by State
+```{r}
+kable(state_med_ABV_IBU, caption = "Table of Median ABV and IBU by State")
+```
+
+### Barchart of Median ABV by State ordered from least to greatest
+```{r plot of median ABV by state with color and ordered from greatest to least}
+# create bar chart for median ABV by state with color and ordered from least to greatest
+state_med_ABV_IBU %>% ggplot(aes(x=reorder(State,Median_ABV), y = Median_ABV)) +
+  geom_bar(aes(fill = State), stat = "identity") +
+  geom_text(aes(label=Median_ABV), position=position_stack(vjust = 1.05), size=2.0, angle = 90) +
+  theme(axis.text.x=element_text(size=rel(0.8), angle=90)) +
+  ggtitle("Median ABV by State") +
+  labs(x="State",y="ABV")
+```
+
+### Barchart of Median IBU by State ordered from least to greatest
+```{r plot of median IBU by state with more color order by least to greatest}
+#create bar chart for median IBU by state with more color order by least to greatest
+state_med_ABV_IBU %>% ggplot(aes(x=reorder(State,Median_IBU), y = Median_IBU)) +
+  geom_bar(aes(fill = State), stat = "identity") +
+  geom_text(aes(label=Median_IBU), position=position_stack(vjust = 1.05), size=2.0, angle = 90) +
+  theme(axis.text.x=element_text(size=rel(0.8), angle=90)) +
+  ggtitle("Median IBU by State") +
+  labs(x="State",y="IBU")
+```
+
+## Problem 5
+Colorado has the maximum ABV beer named “Lee Hill Series Vol. 5 - Belgian Style Quadrupel Ale” with an ABV of .128
+
+Oregon has the maximum IBU beer named “Bitter Bitch Imperial IPA” with an IBU of 138
+```{r Problem 5 - State with Max ABV and IBU}
+########### Problem 5 Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer? ##########
+which.max(big_beer$ABV) # gives number of which state has max ABV, which is number 2279
+big_beer$State[2279] # 2279 is CO, so Colorado has max ABV
+max(big_beer$ABV, na.rm = T) # highest ABV is .128
+big_beer$Beer[2279] # Name of highest ABV Beer is "Lee Hill Series Vol. 5 - Belgian Style Quadrupel Ale"
+big_beer$ABV[2279] # sanity check, all lings up
+
+which.max(big_beer$IBU) # gives number of which state has max IBU, which is number 148
+big_beer$State[148] # 148 is OR, so Oregon has max IBU
+max(big_beer$IBU, na.rm = T) # highest IBU is 138
+big_beer$Beer[148] # Name of highest IBU is "Bitter Bitch Imperial IPA"
+big_beer$IBU[148] # sanity check, all lings up
+```
+
+## Problem 6
+Summary Statistics
+
+The minimum ABV is .001 and maximum is .128  
+The median ABV is .056  
+The mean ABV is .0598, standard deviation is .014, and there were 62 missing values  
+50% of the distribution of beer ABV is between .05 and .067
+
+```{r Problem 6 summary statistics}
+######## Problem 6.	Comment on the summary statistics and distribution of the ABV variable. #########
+summary(big_beer$ABV) # get summary statistics
+sd(big_beer$ABV, na.rm = TRUE) # get SD of ABV
+```
+
+## Boxplot of beer ABV
+```{r box plot of beers}
+#box plot of beers
+big_beer %>% ggplot(aes(x=ABV)) +
+  geom_boxplot() +
+  theme_economist() + 
+  scale_color_economist() +
+  ggtitle("Boxplot of ABV")
+```
+
+## Histogram of beer ABV
+```{r Histogram of beers}
+# Histogram of beers
+big_beer %>% ggplot(aes(x=ABV)) +
+  geom_histogram( colour="blue", fill="white") +
+  ggtitle("Distribution of beers by ABV")
+```
+
+
+## Problem 7
+```{r Problem 7 Relationship between IBU and ABV}
+################ Problem 7.	Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer. #########
+
+big_beer %>% ggplot(aes(x = IBU, y = ABV)) +
+  geom_point() +
+  geom_smooth(method=lm) + # add linear regression line
+  theme_economist() + 
+  scale_color_economist()+
+  theme(axis.text.x=element_text(size=rel(1.0)))+
+  ggtitle("Correlation between IBU and ABV ") +
+  labs(x="IBU",y="ABV")
+```
+
+### There is evidence to suggest that a medium positive relationship between IBU and ABV exists,i.e. generally as IBU increases so does ABV and vice versa. A linear estimate of this relationship is shown by the blue line. Correlation coefficient r = .671, representing medium correlation
+
+``` {r correlation coefficient}
+cor(big_beer$IBU, big_beer$ABV, use = 'pairwise.complete.obs', method = "pearson")
+```
+
+
+# Problem 8
+## Build Hypertuned Knn model
+```{r Hypertuned Knn model}
+beerKnn <- na.omit(big_beer) %>% select(ABV, IBU, Beer_Type) %>%  filter(grepl("IPA|Ale", Beer_Type, ignore.case = TRUE)) # create data frame to do Knn test with ABV, IBU and Beer types (IPA or Ale)
+
+beerKnn$ipa_ale <- factor(ifelse(grepl("IPA", beerKnn$Beer_Type, ignore.case = TRUE), "IPA", "Ale"))
+# Build Hypertuned model to find best K
+set.seed(317)
+iterations <-  100 # 200 iterations takes like 1.5 mins to run, consider smaller, tried 60 and much faster with minimal change in results
+numks <-  60 # gives back 60 iterations of k values
+splitPerc <-  .75 # 75 percent split
+masterAcc <-  matrix(nrow = iterations, ncol = numks)
+for(j in 1:iterations)
+{
+  trainIndices = sample(1:dim(beerKnn)[1],round(splitPerc * dim(beerKnn)[1]))
+  train <-  beerKnn[trainIndices , ]
+  test <-  beerKnn[-trainIndices , ]
+  for(i in 1:numks)
+  {
+    classifications = knn(train[,c("ABV", "IBU")],test[,c("ABV", "IBU")],train$ipa_ale, prob = TRUE, k = i)
+    table(classifications,test$ipa_ale)
+    CM = confusionMatrix(table(classifications,test$ipa_ale))
+    masterAcc[j,i] = CM$overall[1]
+  }
+  
+}
+MeanAcc <- colMeans(masterAcc)
+which.max(MeanAcc) # which K gives max percentage
+max(MeanAcc)
+```
+
+```{r Plot of model}
+plot(seq(1,numks,1),MeanAcc, type = "l", xlab = "Number of Ks", ylab = "Mean Accuracy", main = "k-NN Classification Accuracy for IPA and IBV Beers", col = "blue")
+abline(v = 5, col = "red")
+abline(h = .8607884, col = "red")
+```
+
+# Addition things
+T test for ABV and IBU
+```{r t tests for abv and IBU}
+t.test(ABV ~ ipa_ale, data = beerKnn)
+t.test(IBU ~ ipa_ale, data = beerKnn)
+```
+
+### Session Info:
+```{r}
+sessionInfo()
+```
+
+
