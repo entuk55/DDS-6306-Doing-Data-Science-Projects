@@ -1,7 +1,6 @@
-## Case 1 Study Project
+## Case 1 Study - Project 1 - Unit 8 and 9
 ### Data Science 6306 Class Projects at SMU
 
-### Project 1 - Unit 8 and 9
 ## Exploratory Data Analysis of Breweries in United States
 #### Garrett Drake and Eny Ntuk
 #### 2022-10-16
