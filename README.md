@@ -7,3 +7,8 @@
 
 ### Objective:
 ### This studies is to analyze the ABV (Alcohol By Volume) versus the IBU (International Bitterness Unit) of 2410 US craft beers made by 558 US breweries and to also show any relationship between the ABV and IBU of beers.
+
+###Content:
+### Data Sets
+### RMD File
+### Knit File
